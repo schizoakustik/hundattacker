@@ -1,0 +1,33 @@
+--- 
+title: "Hundattacker"
+author: "Linus Rundberg Streuli"
+output: html_document
+---
+```{r echo = FALSE, message = FALSE}
+library(sf)
+library(tidyverse)
+library(mapview)
+library(padr)
+library(tsibble)
+
+df <- read.csv("hundattacker.csv")
+df <- df[!duplicated(df$Datum), ]
+df <- df[c("Plats", "attack", "Typ", "Datum", "Beskrivning", "lat", "lon")]
+df$Datum <- as.Date(df$Datum)
+df["Veckodag"] <- weekdays(df$Datum)
+df["Månad"] <- month(df$Datum)
+df <- df %>%
+  mutate_at(c("Typ", "Veckodag"), as.factor)
+```
+# Hundattacker
+## Inledning
+Sedan november 2020 har över hundra bullar eller annan mat, preparerade med vassa föremål eller gift, placerats ut på olika ställen i Malmö. Sydsvenskan har skrivit mycket om fallen och även publicerat en karta med de platser där polisanmälningar om farlig hundmat gjorts. (Se bland annat [här](https://www.sydsvenskan.se/2024-03-16/farliga-hundbullar-hittade-i-ogardsparken/)).
+
+Personen eller personerna bakom dåden är fortfarande inte identifierade.
+
+Som hundägare berör det mig naturligtvis lite extra, och som data scientist undrar jag om det går att hitta någonting i datan som kan hjälpa till att få tag i de skydliga. Här följer en dataanalys av platsdatan från Sydsvenskan.
+
+Projektet är ett pågående arbete.
+
+## Beskrivning av datan
+En kort beskrivning av datan kan vara på sin plats.  
