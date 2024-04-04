@@ -3,14 +3,17 @@ title: "Hundattacker"
 author: "Linus Rundberg Streuli"
 output: pdf_document
 ---
-```{r echo = FALSE, message = FALSE}
+```{r echo = FALSE, message = FALSE, warning = FALSE, cache = TRUE, results="hide"}
 library(sf)
 library(tidyverse)
 library(mapview)
-library(padr)
-library(tsibble)
+#library(padr)
+#library(tsibble)
 
+# Read data
 df <- read.csv("hundattacker.csv")
+
+# Prepare data
 df <- df[!duplicated(df$Datum), ]
 df <- df[c("Plats", "attack", "Typ", "Datum", "Beskrivning", "lat", "lon")]
 df$Datum <- as.Date(df$Datum)
@@ -18,6 +21,18 @@ df["Veckodag"] <- weekdays(df$Datum)
 df["Månad"] <- month(df$Datum)
 df <- df %>%
   mutate_at(c("Typ", "Veckodag"), as.factor)
+
+# Cast dataframe as sf with default coordinate system
+df <- st_as_sf(df, coords = c("lon", "lat"), crs = 4326)
+lines <- df %>%
+    st_coordinates() %>%
+    st_linestring() %>%
+    st_sfc(crs = 4326)
+
+swe <- st_read("/home/linus/data/Tatorter_1980_2020.gpkg", layer = "To2020_SR99TM")
+swe <- st_transform(swe, 4326)
+malmö <- swe[swe$TATORT == "Malmö", ]
+
 ```
 # Hundattacker
 ## Inledning
@@ -29,5 +44,64 @@ Som hundägare berör det mig naturligtvis lite extra, och som data scientist un
 
 Projektet är ett pågående arbete.
 
+#### Notera
+`Typ` är filtrerad på enbart `Bulle/Bullar med vasst föremål` för att de dåden verkar ha mest gemensamt. En vidare analys som innefattar även andra typer av föremål kan vara en bra idé längre fram.
+
 ## Beskrivning av datan
-En kort beskrivning av datan kan vara på sin plats.  
+En kort beskrivning av datan kan vara på sin plats. Följande kolumner finns i datasetet efter viss bearbetning.
+```{r}
+names(df)
+```
+
+I grunden består alltså datan av datum för fyndet, platsen där fyndet gjordes i form av en beskrivning, samt latitud och longitud, samt en beskrivning av fyndet. `Veckodag` och `Månad` är kolumner jag lagt till för att undersöka samband.
+
+## Undersökning av datan
+
+På en karta fördelar sig fynden såhär:
+
+```{r echo = FALSE}
+df %>%
+  st_as_sfc(crs = 4326) %>%
+  ggplot() +
+    geom_sf(data = malmö) +
+    geom_sf(alpha = .5) +
+    labs(title = "Platser för hundattacker i Malmö 2020-2024", caption = "Källa: Sydsvenskan") + 
+    theme(legend.position = "none")
+```
+
+En idé jag hade var att undersöka om det fanns kopplingar mellan några platser på det sättet att de följde på varandra. För att ta reda på det drar jag här nedan linjer mellan ett fynd och det nästföljande.
+
+```{r echo = FALSE}
+df %>%
+  st_as_sfc(crs = 4326) %>%
+  ggplot() +
+    geom_sf(data = malmö) +
+    geom_sf(alpha = .5) +
+    geom_sf(data = lines, alpha = .1) + 
+    labs(title = "Platser för hundattacker i Malmö 2020-2024", subtitle = "Linjer dragna mellan ett fynd och det nästföljande", caption = "Källa: Sydsvenskan") + 
+    theme(legend.position = "none")
+```
+
+Om det fanns återkommande mönster i datan skulle de synas genom tjockare streck mellan punkterna, men inget sådant framträder. Här är en möjlig fortsättning att sortera datan på andra sätt än kronologiskt och se om det ger resultat men jag är tveksam.
+
+Andra sätt att snabbtsöker efter mönster kan vara att färgkoda fynden på kartan efter olika kategorier. Här nedan är de färgkodade efter veckodag för fyndet.
+
+```{r echo = FALSE}
+df %>%
+  st_as_sfc(crs = 4326) %>%
+  ggplot() +
+    geom_sf(data = malmö) +
+    geom_sf(aes(col = Veckodag), cex = 5, alpha = .5, data = df) +
+    scale_color_brewer(palette = "Set1") +
+    labs(title = "Platser för hundattacker i Malmö 2020-2024", subtitle = "Kategoriserade efter veckodag", caption = "Källa: Sydsvenskan")
+```
+
+Inte heller här framträder något mönster.
+
+## Vidare steg
+Det här är bara en början. Kommande steg innefattar bland annat logistisk regression på ett dataset med alla datum från det första rapporterade fyndet och framåt.
+
+#### Fun fact
+Om man tar antalet dagar mellan varje fynd, och antar att 0 representerar `A` i `ASCII`-tabellen, får man följande textsträng:
+
+> ADDAKMBACEJVHAGU«DBCCJBAJAAEAACAAGGn\u008bFADýnmFELCFDGBAAEI\u008bHľVIAGDDCDFHH
