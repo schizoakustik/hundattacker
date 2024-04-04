@@ -1,7 +1,7 @@
 --- 
 title: "Hundattacker"
 author: "Linus Rundberg Streuli"
-output: html_document
+output: pdf_document
 ---
 ```{r echo = FALSE, message = FALSE}
 library(sf)
